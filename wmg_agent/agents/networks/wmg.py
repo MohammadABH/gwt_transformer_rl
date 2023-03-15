@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 
+from agents.networks.shared.gwt_transformer import TransformerEncoder
 from agents.networks.shared.transformer import Transformer
 from agents.networks.shared.general import LinearLayer
 from agents.networks.shared.general import SeparateActorCriticLayers
@@ -62,7 +63,8 @@ class WMG_Network(nn.Module):
             self.state_vector_len = WMG_MEMO_SIZE
         self.prepare_vector_embedding_layers(observation_space)
         self.prepare_age_encodings()
-        self.tfm = Transformer(WMG_NUM_ATTENTION_HEADS, WMG_ATTENTION_HEAD_SIZE, WMG_NUM_LAYERS, WMG_HIDDEN_SIZE)
+        # self.tfm = Transformer(WMG_NUM_ATTENTION_HEADS, WMG_ATTENTION_HEAD_SIZE, WMG_NUM_LAYERS, WMG_HIDDEN_SIZE)
+        self.tfm = TransformerEncoder(num_heads=WMG_NUM_ATTENTION_HEADS, embed_dim=WMG_ATTENTION_HEAD_SIZE*WMG_NUM_ATTENTION_HEADS, num_layers=WMG_NUM_LAYERS, ffn_dim=WMG_HIDDEN_SIZE, use_topk=True, topk=5, shared_memory_attention=True)
         if V2:
             self.actor_critic_layers = SharedActorCriticLayers(self.tfm_vec_size, 2, AC_HIDDEN_LAYER_SIZE, action_space)
         else:
@@ -102,7 +104,9 @@ class WMG_Network(nn.Module):
         if S:
             if WMG_MAX_MEMOS:
                 # Store a new Memo.
-                new_vector = torch.tanh(self.memo_creation_layer(tfm_output))[0]
+                memo_creat_tfm_out = self.memo_creation_layer(tfm_output)
+                new_vector = memo_creat_tfm_out[0]
+                # new_vector = torch.tanh(self.memo_creation_layer(tfm_output))[0]
             else:
                 # Store a new observation.
                 new_vector = torch.tanh(x_tens)
